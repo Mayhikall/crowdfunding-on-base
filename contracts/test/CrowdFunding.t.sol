@@ -72,6 +72,7 @@ contract CrowdFundingTest is Test {
     CrowdFunding public crowdfunding;
 
     address public creator = makeAddr("creator");
+    address public creator2 = makeAddr("creator2");
     address public donor1 = makeAddr("donor1");
     address public donor2 = makeAddr("donor2");
 
@@ -103,7 +104,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "QmTestCID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
         );
 
         CrowdFunding.Campaign memory campaign = crowdfunding.getCampaign(
@@ -116,8 +118,13 @@ contract CrowdFundingTest is Test {
             uint8(campaign.paymentType),
             uint8(CrowdFunding.PaymentType.ETH)
         );
+        assertEq(
+            uint8(campaign.category),
+            uint8(CrowdFunding.Category.TECHNOLOGY)
+        );
         assertEq(campaign.amountCollected, 0);
         assertFalse(campaign.claimed);
+        assertFalse(campaign.cancelled);
     }
 
     function test_CreateCampaignToken() public {
@@ -128,7 +135,8 @@ contract CrowdFundingTest is Test {
             1000 * 10 ** 18,
             DURATION,
             "QmTestCID",
-            CrowdFunding.PaymentType.TOKEN
+            CrowdFunding.PaymentType.TOKEN,
+            CrowdFunding.Category.CHARITY
         );
 
         CrowdFunding.Campaign memory campaign = crowdfunding.getCampaign(
@@ -137,6 +145,10 @@ contract CrowdFundingTest is Test {
         assertEq(
             uint8(campaign.paymentType),
             uint8(CrowdFunding.PaymentType.TOKEN)
+        );
+        assertEq(
+            uint8(campaign.category),
+            uint8(CrowdFunding.Category.CHARITY)
         );
     }
 
@@ -149,7 +161,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.OTHER
         );
     }
 
@@ -164,8 +177,305 @@ contract CrowdFundingTest is Test {
             0,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.OTHER
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          RATE LIMITER TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_RateLimiterMaxCampaigns() public {
+        vm.startPrank(creator);
+
+        // Create 5 campaigns (max allowed)
+        for (uint256 i = 0; i < 5; i++) {
+            crowdfunding.createCampaign(
+                string(abi.encodePacked("Campaign ", i)),
+                "Description",
+                TARGET_AMOUNT,
+                DURATION,
+                "CID",
+                CrowdFunding.PaymentType.ETH,
+                CrowdFunding.Category.TECHNOLOGY
+            );
+        }
+
+        assertEq(crowdfunding.getActiveCampaignCount(creator), 5);
+
+        // 6th campaign should fail
+        vm.expectRevert(
+            CrowdFunding.CrowdFunding__MaxCampaignsReached.selector
+        );
+        crowdfunding.createCampaign(
+            "Campaign 6",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+        vm.stopPrank();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        CAMPAIGN CANCELLATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_CancelCampaign() public {
+        vm.startPrank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        assertEq(crowdfunding.getActiveCampaignCount(creator), 1);
+
+        crowdfunding.cancelCampaign(campaignId);
+
+        CrowdFunding.Campaign memory campaign = crowdfunding.getCampaign(
+            campaignId
+        );
+        assertTrue(campaign.cancelled);
+        assertEq(crowdfunding.getActiveCampaignCount(creator), 0);
+        vm.stopPrank();
+    }
+
+    function test_RevertCancelCampaignNotCreator() public {
+        vm.prank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        vm.prank(donor1);
+        vm.expectRevert(CrowdFunding.CrowdFunding__NotCreator.selector);
+        crowdfunding.cancelCampaign(campaignId);
+    }
+
+    function test_RevertCancelCampaignWithDonations() public {
+        vm.prank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        vm.prank(donor1);
+        crowdfunding.donateETH{value: 1 ether}(campaignId);
+
+        vm.prank(creator);
+        vm.expectRevert(
+            CrowdFunding.CrowdFunding__CannotCancelWithDonations.selector
+        );
+        crowdfunding.cancelCampaign(campaignId);
+    }
+
+    function test_RevertDonateToCancelledCampaign() public {
+        vm.startPrank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+        crowdfunding.cancelCampaign(campaignId);
+        vm.stopPrank();
+
+        vm.prank(donor1);
+        vm.expectRevert(CrowdFunding.CrowdFunding__CampaignCancelled.selector);
+        crowdfunding.donateETH{value: 1 ether}(campaignId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EXTEND DEADLINE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_ExtendDeadline() public {
+        vm.startPrank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        CrowdFunding.Campaign memory campaignBefore = crowdfunding.getCampaign(
+            campaignId
+        );
+        uint64 oldDeadline = campaignBefore.deadline;
+
+        // Extend by 7 days
+        crowdfunding.extendDeadline(campaignId, 7 days);
+
+        CrowdFunding.Campaign memory campaignAfter = crowdfunding.getCampaign(
+            campaignId
+        );
+        assertEq(campaignAfter.deadline, oldDeadline + 7 days);
+        vm.stopPrank();
+    }
+
+    function test_RevertExtendDeadlineTooLong() public {
+        vm.startPrank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        // Try to extend more than 30 days
+        vm.expectRevert(CrowdFunding.CrowdFunding__ExtensionTooLong.selector);
+        crowdfunding.extendDeadline(campaignId, 31 days);
+        vm.stopPrank();
+    }
+
+    function test_RevertExtendDeadlineNotCreator() public {
+        vm.prank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        vm.prank(donor1);
+        vm.expectRevert(CrowdFunding.CrowdFunding__NotCreator.selector);
+        crowdfunding.extendDeadline(campaignId, 7 days);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        CAMPAIGN UPDATE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_UpdateCampaign() public {
+        vm.startPrank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Old Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "OldCID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        crowdfunding.updateCampaign(campaignId, "New Description", "NewCID");
+
+        CrowdFunding.Campaign memory campaign = crowdfunding.getCampaign(
+            campaignId
+        );
+        assertEq(campaign.description, "New Description");
+        assertEq(campaign.imageCID, "NewCID");
+        vm.stopPrank();
+    }
+
+    function test_UpdateCampaignPartial() public {
+        vm.startPrank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Old Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "OldCID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        // Update only description (empty imageCID)
+        crowdfunding.updateCampaign(campaignId, "New Description", "");
+
+        CrowdFunding.Campaign memory campaign = crowdfunding.getCampaign(
+            campaignId
+        );
+        assertEq(campaign.description, "New Description");
+        assertEq(campaign.imageCID, "OldCID"); // Should remain unchanged
+        vm.stopPrank();
+    }
+
+    function test_RevertUpdateCampaignNotCreator() public {
+        vm.prank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        vm.prank(donor1);
+        vm.expectRevert(CrowdFunding.CrowdFunding__NotCreator.selector);
+        crowdfunding.updateCampaign(campaignId, "New Desc", "NewCID");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        MINIMUM DONATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_RevertDonateETHTooLow() public {
+        vm.prank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        vm.prank(donor1);
+        vm.expectRevert(CrowdFunding.CrowdFunding__DonationTooLow.selector);
+        crowdfunding.donateETH{value: 0.0001 ether}(campaignId);
+    }
+
+    function test_RevertDonateTokenTooLow() public {
+        vm.prank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Campaign",
+            "Description",
+            500 * 10 ** 18,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.TOKEN,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        vm.startPrank(donor1);
+        token.approve(address(crowdfunding), 0.5 * 10 ** 18);
+        vm.expectRevert(CrowdFunding.CrowdFunding__DonationTooLow.selector);
+        crowdfunding.donateToken(campaignId, 0.5 * 10 ** 18);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -180,7 +490,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.CHARITY
         );
 
         vm.prank(donor1);
@@ -201,7 +512,8 @@ contract CrowdFundingTest is Test {
             500 * 10 ** 18,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.TOKEN
+            CrowdFunding.PaymentType.TOKEN,
+            CrowdFunding.Category.EDUCATION
         );
 
         vm.startPrank(donor1);
@@ -223,7 +535,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.OTHER
         );
 
         vm.startPrank(donor1);
@@ -245,7 +558,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
         );
 
         // Donate enough to reach target
@@ -278,7 +592,8 @@ contract CrowdFundingTest is Test {
             tokenTarget,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.TOKEN
+            CrowdFunding.PaymentType.TOKEN,
+            CrowdFunding.Category.HEALTH
         );
 
         // Donate tokens
@@ -306,7 +621,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.GAMING
         );
 
         vm.prank(donor1);
@@ -327,7 +643,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.ART
         );
 
         vm.prank(donor1);
@@ -346,7 +663,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.MUSIC
         );
 
         vm.prank(donor1);
@@ -371,7 +689,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.ENVIRONMENT
         );
 
         vm.prank(donor1);
@@ -399,7 +718,8 @@ contract CrowdFundingTest is Test {
             tokenTarget,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.TOKEN
+            CrowdFunding.PaymentType.TOKEN,
+            CrowdFunding.Category.COMMUNITY
         );
 
         vm.startPrank(donor1);
@@ -426,7 +746,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.OTHER
         );
 
         vm.prank(donor1);
@@ -447,7 +768,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.OTHER
         );
 
         vm.prank(donor1);
@@ -472,7 +794,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID1",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
         );
         crowdfunding.createCampaign(
             "Campaign 2",
@@ -480,7 +803,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID2",
-            CrowdFunding.PaymentType.TOKEN
+            CrowdFunding.PaymentType.TOKEN,
+            CrowdFunding.Category.CHARITY
         );
         crowdfunding.createCampaign(
             "Campaign 3",
@@ -488,7 +812,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID3",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.ART
         );
         vm.stopPrank();
 
@@ -509,7 +834,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.OTHER
         );
 
         assertTrue(crowdfunding.isCampaignActive(campaignId));
@@ -526,7 +852,8 @@ contract CrowdFundingTest is Test {
             TARGET_AMOUNT,
             DURATION,
             "CID",
-            CrowdFunding.PaymentType.ETH
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.OTHER
         );
 
         vm.prank(donor1);
@@ -539,5 +866,76 @@ contract CrowdFundingTest is Test {
         assertEq(donators.length, 2);
         assertEq(donators[0], donor1);
         assertEq(donators[1], donor2);
+    }
+
+    function test_GetCampaignsByCategory() public {
+        vm.startPrank(creator);
+        crowdfunding.createCampaign(
+            "Tech 1",
+            "Desc",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID1",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+        crowdfunding.createCampaign(
+            "Charity 1",
+            "Desc",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID2",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.CHARITY
+        );
+        crowdfunding.createCampaign(
+            "Tech 2",
+            "Desc",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID3",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+        vm.stopPrank();
+
+        uint256[] memory techCampaigns = crowdfunding.getCampaignsByCategory(
+            CrowdFunding.Category.TECHNOLOGY
+        );
+        assertEq(techCampaigns.length, 2);
+        assertEq(techCampaigns[0], 0);
+        assertEq(techCampaigns[1], 2);
+
+        uint256[] memory charityCampaigns = crowdfunding.getCampaignsByCategory(
+            CrowdFunding.Category.CHARITY
+        );
+        assertEq(charityCampaigns.length, 1);
+        assertEq(charityCampaigns[0], 1);
+    }
+
+    function test_CancelledCampaignNotInCategoryFilter() public {
+        vm.startPrank(creator);
+        uint256 campaignId = crowdfunding.createCampaign(
+            "Tech Campaign",
+            "Desc",
+            TARGET_AMOUNT,
+            DURATION,
+            "CID",
+            CrowdFunding.PaymentType.ETH,
+            CrowdFunding.Category.TECHNOLOGY
+        );
+
+        uint256[] memory beforeCancel = crowdfunding.getCampaignsByCategory(
+            CrowdFunding.Category.TECHNOLOGY
+        );
+        assertEq(beforeCancel.length, 1);
+
+        crowdfunding.cancelCampaign(campaignId);
+
+        uint256[] memory afterCancel = crowdfunding.getCampaignsByCategory(
+            CrowdFunding.Category.TECHNOLOGY
+        );
+        assertEq(afterCancel.length, 0);
+        vm.stopPrank();
     }
 }
