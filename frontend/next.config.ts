@@ -2,8 +2,19 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: {
-    ppr: false,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'gateway.pinata.cloud',
+        pathname: '/ipfs/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.mypinata.cloud',
+        pathname: '/ipfs/**',
+      },
+    ],
   },
 };
 
