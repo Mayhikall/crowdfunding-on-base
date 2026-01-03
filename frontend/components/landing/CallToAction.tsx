@@ -71,7 +71,7 @@ export function CallToAction() {
           >
             <Link href="/campaigns">
               <Button variant="primary" size="lg" className="w-full sm:w-auto text-lg px-10">
-                Let's Fund
+                Let&apos;s Fund
               </Button>
             </Link>
           </div>
