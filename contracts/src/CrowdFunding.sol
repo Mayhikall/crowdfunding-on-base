@@ -6,8 +6,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title CrowdFunding
-/// @notice Platform crowdfunding dengan dukungan pembayaran ETH dan ERC20 Token
 contract CrowdFunding is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 

@@ -165,3 +165,22 @@ export function useDonationHistory(address: `0x${string}` | undefined, campaignC
 
     return { donations, activeStatuses, successStatuses }
 }
+
+// Hook to get donation amounts for each donator
+export function useDonationsForDonators(campaignId: number, donators: readonly `0x${string}`[] | undefined) {
+    const calls = donators && donators.length > 0
+        ? donators.map((donator) => ({
+            address: CROWDFUNDING_ADDRESS,
+            abi: CROWDFUNDING_ABI,
+            functionName: 'getDonation' as const,
+            args: [BigInt(campaignId), donator] as const,
+        }))
+        : []
+
+    const { data } = useReadContracts({
+        contracts: calls,
+        query: { enabled: !!donators && donators.length > 0 },
+    })
+
+    return data
+}

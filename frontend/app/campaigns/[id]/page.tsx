@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useAccount } from 'wagmi'
 import { Card, CardContent, Badge, Progress, Button } from '@/components/ui'
 import { StatusBadge } from '@/components/ui/Badge'
-import { useCampaign, useDonators, useDonation, useIsCampaignSuccessful } from '@/hooks/useCrowdFunding'
+import { useCampaign, useDonators, useDonation, useIsCampaignSuccessful, useDonationsForDonators } from '@/hooks/useCrowdFunding'
 import { Campaign, getCampaignStatus, CATEGORY_LABELS, CATEGORY_COLORS, PaymentType } from '@/types/campaign'
 import { formatETH, formatSDT, formatAddress, formatDeadline, getTimeRemaining, getProgress, getIPFSUrl } from '@/lib/utils'
 import { DonateForm } from './DonateForm'
@@ -18,16 +18,19 @@ export default function CampaignDetailPage() {
   const campaignId = Number(params.id)
   const { address } = useAccount()
 
-  const { data: campaign, isLoading, refetch } = useCampaign(campaignId)
+  const { data: campaign, isLoading, error, refetch } = useCampaign(campaignId)
   const { data: donators } = useDonators(campaignId)
   const { data: myDonation } = useDonation(campaignId, address)
   const { data: isSuccessful } = useIsCampaignSuccessful(campaignId)
+  const donatorAmounts = useDonationsForDonators(campaignId, donators as readonly `0x${string}`[] | undefined)
+
+  const isETH = campaign?.paymentType === PaymentType.ETH
 
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-300 w-48 mb-8"></div>
+          <div className="h-8 bg-gray-300 w-48 mb-8 border-2 border-black"></div>
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 aspect-video bg-gray-300 border-4 border-black"></div>
             <div className="bg-gray-300 h-96 border-4 border-black"></div>
@@ -37,13 +40,44 @@ export default function CampaignDetailPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <div className="max-w-md mx-auto">
+          <Card hover={false} className="bg-[#FF6B6B]">
+            <CardContent className="py-12 text-white">
+              <div className="w-16 h-16 mx-auto mb-4 bg-white border-4 border-black rounded-full flex items-center justify-center">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <h1 className="text-2xl font-black mb-4">Error Loading Campaign</h1>
+              <p className="mb-6">{error.message || 'Failed to load campaign data. Please try again.'}</p>
+              <Link href="/campaigns">
+                <Button variant="primary">Back to Campaigns</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   if (!campaign || campaign.creator === '0x0000000000000000000000000000000000000000') {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-3xl font-black mb-4">Campaign Not Found</h1>
-        <Link href="/campaigns">
-          <Button variant="primary">Back to Campaigns</Button>
-        </Link>
+        <div className="max-w-md mx-auto">
+          <Card hover={false}>
+            <CardContent className="py-12">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 border-4 border-black rounded-full flex items-center justify-center">
+                <span className="text-2xl">🔍</span>
+              </div>
+              <h1 className="text-2xl font-black mb-4">Campaign Not Found</h1>
+              <p className="text-gray-600 mb-6">The campaign you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+              <Link href="/campaigns">
+                <Button variant="primary">Back to Campaigns</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -51,7 +85,6 @@ export default function CampaignDetailPage() {
   const status = getCampaignStatus(campaign as unknown as Campaign)
   const progress = getProgress(campaign.amountCollected, campaign.targetAmount)
   const isCreator = address && campaign.creator.toLowerCase() === address.toLowerCase()
-  const isETH = campaign.paymentType === PaymentType.ETH
   const hasDonation = myDonation && myDonation > 0n
 
   return (
@@ -114,25 +147,31 @@ export default function CampaignDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Donators */}
+          {/* Donators with amounts */}
           <Card hover={false}>
             <CardContent>
               <h2 className="font-bold text-xl uppercase mb-4">
                 Donors ({donators?.length ?? 0})
               </h2>
               {donators && donators.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {donators.map((donator, i) => (
-                    <div
-                      key={i}
-                      className="p-2 bg-gray-100 border-2 border-black font-mono text-sm"
-                    >
-                      {formatAddress(donator)}
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  {donators.map((donator, i) => {
+                    const amount = donatorAmounts?.[i]?.result as bigint | undefined
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-3 bg-gray-100 border-2 border-black"
+                      >
+                        <span className="font-mono text-sm">{formatAddress(donator)}</span>
+                        <span className="font-bold text-sm">
+                          {amount ? (isETH ? formatETH(amount) : formatSDT(amount)) : '...'}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               ) : (
-                <p className="text-gray-500">No donors yet.</p>
+                <p className="text-gray-500">No donors yet. Be the first to support this campaign!</p>
               )}
             </CardContent>
           </Card>
@@ -188,19 +227,21 @@ export default function CampaignDetailPage() {
             </Card>
           )}
 
-          {/* All Action Buttons - Always visible with proper states */}
+          {/* Actions Card */}
           <Card hover={false}>
             <CardContent className="space-y-3">
               <h3 className="font-bold text-lg uppercase mb-2">Actions</h3>
               
               {/* Refund Button - Show for donors when failed */}
-              <RefundButton 
-                campaignId={campaignId} 
-                onSuccess={refetch}
-                canRefund={status === 'failed' && !!hasDonation}
-                hasDonation={!!hasDonation}
-                status={status}
-              />
+              {hasDonation && (
+                <RefundButton 
+                  campaignId={campaignId} 
+                  onSuccess={refetch}
+                  canRefund={status === 'failed' && !!hasDonation}
+                  hasDonation={!!hasDonation}
+                  status={status}
+                />
+              )}
 
               {/* Creator Actions */}
               {isCreator && (
@@ -214,9 +255,12 @@ export default function CampaignDetailPage() {
               )}
 
               {/* Message for non-connected or non-involved users */}
-              {!isCreator && !hasDonation && status !== 'active' && (
+              {!isCreator && !hasDonation && (
                 <p className="text-gray-500 text-sm">
-                  No actions available for this campaign.
+                  {status === 'active' 
+                    ? 'Donate to this campaign to access donor actions.'
+                    : 'No actions available for this campaign.'
+                  }
                 </p>
               )}
             </CardContent>

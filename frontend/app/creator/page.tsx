@@ -6,11 +6,11 @@ import { parseEther, parseUnits } from 'viem'
 import { Button, Card, CardContent, Input, Textarea, Select, Badge, Progress } from '@/components/ui'
 import { CROWDFUNDING_ADDRESS, CROWDFUNDING_ABI } from '@/lib/contracts'
 import { useCampaigns, useActiveCampaignCount, transformCampaigns } from '@/hooks/useCrowdFunding'
-import { useTokenBalance } from '@/hooks/useSedulurToken'
 import { uploadToPinata, validateImageFile } from '@/lib/pinata'
 import { parseContractError, formatAddress, formatETH, formatSDT, getProgress, getTimeRemaining } from '@/lib/utils'
 import { PaymentType, Category, CATEGORY_LABELS, getCampaignStatus } from '@/types/campaign'
 import { StatusBadge } from '@/components/ui/Badge'
+import { ConnectButton } from '@/components/wallet/ConnectButton'
 import Link from 'next/link'
 
 const categoryOptions = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
@@ -27,7 +27,6 @@ export default function CreatorDashboardPage() {
   const { address, isConnected } = useAccount()
   const { data: activeCampaigns } = useActiveCampaignCount(address)
   const { data: rawCampaigns, refetch } = useCampaigns(0, 100)
-  const { data: tokenBalance } = useTokenBalance(address)
   
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
@@ -49,18 +48,8 @@ export default function CreatorDashboardPage() {
 
   const allCampaigns = transformCampaigns(rawCampaigns)
   const myCampaigns = allCampaigns.filter(
-    c => address && c.creator.toLowerCase() === address.toLowerCase()
+    c => address && c.creator.toLowerCase() === address.toLowerCase() && !c.cancelled
   )
-
-  // Stats
-  const active = myCampaigns.filter(c => getCampaignStatus(c) === 'active')
-  const successful = myCampaigns.filter(c => getCampaignStatus(c) === 'success' || getCampaignStatus(c) === 'claimed')
-  const totalRaisedETH = myCampaigns
-    .filter(c => c.paymentType === PaymentType.ETH)
-    .reduce((acc, c) => acc + c.amountCollected, 0n)
-  const totalRaisedSDT = myCampaigns
-    .filter(c => c.paymentType === PaymentType.TOKEN)
-    .reduce((acc, c) => acc + c.amountCollected, 0n)
 
   useEffect(() => {
     if (isSuccess) {
@@ -121,9 +110,49 @@ export default function CreatorDashboardPage() {
 
   if (!isConnected) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-3xl font-black mb-4">Connect Wallet</h1>
-        <p className="text-gray-600">Connect your wallet to access Creator Dashboard</p>
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-md mx-auto">
+          <Card hover={false} className="text-center">
+            <CardContent className="py-12">
+              {/* Icon */}
+              <div className="w-20 h-20 mx-auto mb-6 bg-[#FFE66D] border-4 border-black rounded-full flex items-center justify-center">
+                <span className="text-4xl">🔗</span>
+              </div>
+              
+              {/* Title */}
+              <h1 className="text-2xl font-black uppercase mb-4">Connect Your Wallet</h1>
+              
+              {/* Description */}
+              <p className="text-gray-600 mb-8">
+                Connect your wallet to access the Creator Dashboard and start creating campaigns.
+              </p>
+              
+              {/* Connect Button */}
+              <div className="flex justify-center">
+                <ConnectButton />
+              </div>
+              
+              {/* Features preview */}
+              <div className="mt-8 pt-6 border-t-2 border-gray-200 text-left">
+                <p className="text-sm font-bold uppercase text-gray-500 mb-3">What you can do:</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-5 h-5 bg-[#95E1D3] border-2 border-black flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>Create crowdfunding campaigns</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-5 h-5 bg-[#95E1D3] border-2 border-black flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>Track your campaign progress</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-5 h-5 bg-[#95E1D3] border-2 border-black flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>Withdraw funds when successful</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -149,35 +178,7 @@ export default function CreatorDashboardPage() {
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Card hover={false} className="bg-[#4ECDC4]">
-          <CardContent className="text-center">
-            <p className="text-sm uppercase font-bold opacity-80">Active</p>
-            <p className="text-3xl font-black">{active.length}</p>
-          </CardContent>
-        </Card>
-        <Card hover={false} className="bg-[#95E1D3]">
-          <CardContent className="text-center">
-            <p className="text-sm uppercase font-bold opacity-80">Successful</p>
-            <p className="text-3xl font-black">{successful.length}</p>
-          </CardContent>
-        </Card>
-        <Card hover={false} className="bg-[#FFE66D]">
-          <CardContent className="text-center">
-            <p className="text-sm uppercase font-bold opacity-80">Total Raised ETH</p>
-            <p className="text-2xl font-black">{formatETH(totalRaisedETH)}</p>
-          </CardContent>
-        </Card>
-        <Card hover={false} className="bg-white">
-          <CardContent className="text-center">
-            <p className="text-sm uppercase font-bold opacity-80">Total Raised SDT</p>
-            <p className="text-2xl font-black">{formatSDT(totalRaisedSDT)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Create Form */}
+      {/* Create Campaign Form */}
       {showForm && (
         <Card className="mb-8">
           <CardContent>
@@ -226,9 +227,11 @@ export default function CreatorDashboardPage() {
         </Card>
       )}
 
-      {/* My Campaigns */}
-      <h2 className="text-2xl font-black uppercase mb-4">My Campaigns ({myCampaigns.length})</h2>
-      {myCampaigns.length === 0 ? (
+      {/* My Campaigns - Hide when form is shown */}
+      {!showForm && (
+        <>
+          <h2 className="text-2xl font-black uppercase mb-4">My Campaigns ({myCampaigns.length})</h2>
+          {myCampaigns.length === 0 ? (
         <Card hover={false}>
           <CardContent className="text-center py-12">
             <h3 className="text-xl font-bold mb-2">No Campaigns Yet</h3>
@@ -243,7 +246,7 @@ export default function CreatorDashboardPage() {
             const progress = getProgress(campaign.amountCollected, campaign.targetAmount)
             const isETH = campaign.paymentType === PaymentType.ETH
             return (
-              <Link href={`/campaign/${campaign.id}`} key={campaign.id}>
+              <Link href={`/campaigns/${campaign.id}`} key={campaign.id}>
                 <Card className="hover:translate-x-1 hover:translate-y-1">
                   <CardContent>
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -267,6 +270,8 @@ export default function CreatorDashboardPage() {
             )
           })}
         </div>
+      )}
+        </>
       )}
     </div>
   )

@@ -3,29 +3,44 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useAccount } from 'wagmi'
 import { ConnectButton } from '../wallet/ConnectButton'
 
 export function Header() {
   const pathname = usePathname()
-  const { isConnected } = useAccount()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  const publicLinks = [
+  // Check if we're on landing page
+  const isLandingPage = pathname === '/'
+
+  const navLinks = [
     { href: '/campaigns', label: 'Campaigns' },
     { href: '/faucet', label: 'Faucet' },
-  ]
-
-  const authLinks = [
     { href: '/creator', label: 'Creator' },
     { href: '/donor', label: 'Donor' },
   ]
 
-  const allLinks = isConnected ? [...publicLinks, ...authLinks] : publicLinks
-
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
   const closeMenu = () => setIsMenuOpen(false)
 
+  // Landing page: simplified navbar with logo only
+  if (isLandingPage) {
+    return (
+      <header className="sticky top-0 z-50 bg-[#FFE66D] border-b-4 border-black">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2">
+              <span className="font-black text-lg md:text-xl uppercase tracking-tight">
+                SEDULUR<span className="text-[#FF6B6B]">FUND</span>
+              </span>
+            </Link>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  // Dashboard pages: full navbar with navigation
   return (
     <header className="sticky top-0 z-50 bg-[#FFE66D] border-b-4 border-black">
       <div className="container mx-auto px-4">
@@ -39,7 +54,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
-            {allLinks.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -79,7 +94,7 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden border-t-4 border-black bg-[#FFE66D] pb-4">
             <nav className="flex flex-col gap-2 pt-4">
-              {allLinks.map((link) => (
+              {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

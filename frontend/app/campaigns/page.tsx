@@ -4,13 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui'
 import { CampaignGrid } from '@/components/campaign'
-import { useCampaigns, useCampaignCount, transformCampaigns } from '@/hooks/useCrowdFunding'
+import { useCampaigns, transformCampaigns } from '@/hooks/useCrowdFunding'
 import { CATEGORY_LABELS, Category } from '@/types/campaign'
 
 export default function CampaignsPage() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   
-  const { data: campaignCount } = useCampaignCount()
   const { data: rawCampaigns, isLoading } = useCampaigns(0, 50)
   
   const allCampaigns = transformCampaigns(rawCampaigns)
@@ -28,7 +27,7 @@ export default function CampaignsPage() {
         <div>
           <h1 className="text-4xl font-black uppercase">Campaigns</h1>
           <p className="text-gray-600">
-            {campaignCount?.toString() ?? '0'} total campaigns
+            {allCampaigns.length} active campaigns
           </p>
         </div>
       </div>

@@ -8,6 +8,7 @@ import { SEDULUR_TOKEN_ADDRESS, SEDULUR_TOKEN_ABI } from '@/lib/contracts'
 import { formatAddress, formatETH, formatSDT, formatCooldown, formatDeadline, getProgress, parseContractError } from '@/lib/utils'
 import { PaymentType, CATEGORY_LABELS } from '@/types/campaign'
 import { useCampaigns, useCampaignCount, transformCampaigns, useDonationHistory } from '@/hooks/useCrowdFunding'
+import { ConnectButton } from '@/components/wallet/ConnectButton'
 
 type DonationStatus = 'ACTIVE' | 'SUCCESSFUL' | 'FAILED'
 
@@ -173,9 +174,49 @@ export default function DonorDashboardPage() {
 
   if (!isConnected) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-3xl font-black mb-4">Connect Wallet</h1>
-        <p className="text-gray-600">Connect your wallet to access Donor Dashboard</p>
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-md mx-auto">
+          <Card hover={false} className="text-center">
+            <CardContent className="py-12">
+              {/* Icon */}
+              <div className="w-20 h-20 mx-auto mb-6 bg-[#4ECDC4] border-4 border-black rounded-full flex items-center justify-center">
+                <span className="text-4xl">🔗</span>
+              </div>
+              
+              {/* Title */}
+              <h1 className="text-2xl font-black uppercase mb-4">Connect Your Wallet</h1>
+              
+              {/* Description */}
+              <p className="text-gray-600 mb-8">
+                Connect your wallet to access the Donor Dashboard and view your donation history.
+              </p>
+              
+              {/* Connect Button */}
+              <div className="flex justify-center">
+                <ConnectButton />
+              </div>
+              
+              {/* Features preview */}
+              <div className="mt-8 pt-6 border-t-2 border-gray-200 text-left">
+                <p className="text-sm font-bold uppercase text-gray-500 mb-3">What you can do:</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-5 h-5 bg-[#95E1D3] border-2 border-black flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>View your donation history</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-5 h-5 bg-[#95E1D3] border-2 border-black flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>Claim SDT tokens from faucet</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-5 h-5 bg-[#95E1D3] border-2 border-black flex items-center justify-center text-xs font-bold">✓</span>
+                    <span>Request refunds on failed campaigns</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -312,7 +353,7 @@ export default function DonorDashboardPage() {
                           {CATEGORY_LABELS[campaign.category as keyof typeof CATEGORY_LABELS]}
                         </Badge>
                       </div>
-                      <Link href={`/campaign/${campaign.id}`}>
+                      <Link href={`/campaigns/${campaign.id}`}>
                         <h3 className="font-bold text-lg hover:text-[#4ECDC4]">{campaign.title}</h3>
                       </Link>
                       <p className="text-sm text-gray-500">{statusSubtitles[campaign.status]}</p>
@@ -330,12 +371,12 @@ export default function DonorDashboardPage() {
                       <Progress value={progress} size="sm" showLabel={false} className="w-24" />
                       <div className="flex gap-2 justify-end">
                         {campaign.status === 'ACTIVE' && (
-                          <Link href={`/campaign/${campaign.id}`}>
+                          <Link href={`/campaigns/${campaign.id}`}>
                             <Button variant="donate" size="sm">Donate Again</Button>
                           </Link>
                         )}
                         {campaign.status === 'FAILED' && (
-                          <Link href={`/campaign/${campaign.id}`}>
+                          <Link href={`/campaigns/${campaign.id}`}>
                             <Button variant="refund" size="sm">Refund</Button>
                           </Link>
                         )}

@@ -19,7 +19,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const isETH = campaign.paymentType === PaymentType.ETH
 
   return (
-    <Link href={`/campaign/${campaign.id}`}>
+    <Link href={`/campaigns/${campaign.id}`}>
       <Card className="h-full overflow-hidden group">
         {/* Image */}
         <div className="relative aspect-video border-b-4 border-black overflow-hidden bg-gray-200">

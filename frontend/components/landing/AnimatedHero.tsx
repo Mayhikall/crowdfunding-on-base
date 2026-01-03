@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useAccount } from 'wagmi'
 import { Button } from '@/components/ui'
 
 export function AnimatedHero() {
   const [isVisible, setIsVisible] = useState(false)
-  const { isConnected } = useAccount()
 
   useEffect(() => {
     setIsVisible(true)
@@ -84,23 +82,16 @@ export function AnimatedHero() {
             Support meaningful projects or raise funds for your own dreams!
           </p>
 
-          {/* CTA Buttons */}
+          {/* Single CTA Button - Direct to Creator Dashboard */}
           <div 
-            className={`flex flex-wrap gap-4 ${isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
+            className={`${isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
             style={{ animationDelay: '0.5s' }}
           >
-            <Link href="/campaigns">
-              <Button variant="primary" size="lg" className="animate-glow">
-                Explore Campaigns
+            <Link href="/creator">
+              <Button variant="primary" size="lg" className="animate-glow text-lg px-10">
+                Start DApps
               </Button>
             </Link>
-            {isConnected && (
-              <Link href="/campaign/create">
-                <Button variant="faucet" size="lg">
-                  Start Fundraising
-                </Button>
-              </Link>
-            )}
           </div>
 
           {/* Trust Badges */}

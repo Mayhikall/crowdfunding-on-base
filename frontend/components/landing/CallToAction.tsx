@@ -2,13 +2,11 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
-import { useAccount } from 'wagmi'
 import { Button } from '@/components/ui'
 
 export function CallToAction() {
   const [isVisible, setIsVisible] = useState(false)
   const sectionRef = useRef<HTMLElement>(null)
-  const { isConnected } = useAccount()
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -66,23 +64,16 @@ export function CallToAction() {
             Start fundraising or support a campaign today!
           </p>
 
-          {/* CTA Buttons */}
+          {/* Single CTA Button */}
           <div 
-            className={`flex flex-col sm:flex-row gap-4 justify-center ${isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
+            className={`${isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
             style={{ animationDelay: '0.2s' }}
           >
-            <Link href="/campaigns">
-              <Button variant="primary" size="lg" className="w-full sm:w-auto">
-                View All Campaigns
+            <Link href="/creator">
+              <Button variant="primary" size="lg" className="w-full sm:w-auto text-lg px-10">
+                🚀 Start App
               </Button>
             </Link>
-            {isConnected && (
-              <Link href="/campaign/create">
-                <Button variant="donate" size="lg" className="w-full sm:w-auto">
-                  Create New Campaign
-                </Button>
-              </Link>
-            )}
           </div>
 
           {/* Additional Info */}
