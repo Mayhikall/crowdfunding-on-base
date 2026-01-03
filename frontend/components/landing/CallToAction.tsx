@@ -69,9 +69,9 @@ export function CallToAction() {
             className={`${isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}
             style={{ animationDelay: '0.2s' }}
           >
-            <Link href="/creator">
+            <Link href="/campaigns">
               <Button variant="primary" size="lg" className="w-full sm:w-auto text-lg px-10">
-                🚀 Start App
+                Let's Fund
               </Button>
             </Link>
           </div>

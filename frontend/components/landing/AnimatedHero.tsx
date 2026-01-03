@@ -89,7 +89,7 @@ export function AnimatedHero() {
           >
             <Link href="/creator">
               <Button variant="primary" size="lg" className="animate-glow text-lg px-10">
-                Start DApps
+                Start Campaign
               </Button>
             </Link>
           </div>

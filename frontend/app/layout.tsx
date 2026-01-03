@@ -4,9 +4,9 @@ import { Header, Footer } from '@/components/layout'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'SedulurFund - Crowdfunding on Base',
-  description: 'Platform crowdfunding terdesentralisasi di Base Sepolia. Buat campaign, donasi dengan ETH atau SDT token.',
-  keywords: ['crowdfunding', 'web3', 'base', 'blockchain', 'crypto'],
+  title: 'SedulurFund - Decentralized Crowdfunding on Base',
+  description: 'A decentralized crowdfunding platform on Base Sepolia. Create campaigns, donate with ETH or SDT tokens. Transparent, secure, and community-driven.',
+  keywords: ['crowdfunding', 'web3', 'base', 'blockchain', 'crypto', 'decentralized', 'fundraising'],
 }
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="id">
+    <html lang="en">
       <body className="min-h-screen flex flex-col">
         <Providers>
           <Header />
