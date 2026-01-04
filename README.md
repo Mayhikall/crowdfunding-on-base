@@ -1,4 +1,4 @@
-# Crowdfunding on Base
+# SEDULUR FUND
 
 A decentralized crowdfunding platform built on the Base blockchain, featuring smart contracts developed with Foundry and a modern Next.js frontend.
 
@@ -128,10 +128,19 @@ BASESCAN_API_KEY=your_basescan_api_key
 Create a `.env.local` file in the `frontend` directory:
 
 ```env
-NEXT_PUBLIC_CROWDFUNDING_ADDRESS=deployed_contract_address
-NEXT_PUBLIC_TOKEN_ADDRESS=deployed_token_address
-NEXT_PUBLIC_CHAIN_ID=84532
+# Pinata IPFS Configuration
+NEXT_PUBLIC_PINATA_JWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your_pinata_jwt_token_here
+NEXT_PUBLIC_PINATA_GATEWAY=your-gateway-name.mypinata.cloud
+
+# Base Sepolia Network
+NEXT_PUBLIC_RPC_URL=https://sepolia.base.org
+
+# Deployed Contract Addresses
+NEXT_PUBLIC_CROWDFUNDING_ADDRESS=0x1234567890abcdef1234567890abcdef12345678
+NEXT_PUBLIC_SEDULUR_TOKEN_ADDRESS=0xabcdef1234567890abcdef1234567890abcdef12
 ```
+
+> **Note**: Replace the example values above with your actual credentials and deployed contract addresses.
 
 ## 💻 Usage
 
