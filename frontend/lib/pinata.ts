@@ -1,33 +1,32 @@
-const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT
-const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY || 'https://gateway.pinata.cloud'
+// Pinata gateway - required
+const PINATA_GATEWAY = process.env.NEXT_PUBLIC_PINATA_GATEWAY
 
+/**
+ * Upload file to Pinata via server-side API route
+ */
 export async function uploadToPinata(file: File): Promise<string> {
-    if (!PINATA_JWT) {
-        throw new Error('Pinata JWT tidak dikonfigurasi')
-    }
-
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+    const response = await fetch('/api/upload', {
         method: 'POST',
-        headers: {
-            Authorization: `Bearer ${PINATA_JWT}`,
-        },
         body: formData,
     })
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || 'Upload ke Pinata gagal')
+        throw new Error(error.error || 'Upload failed')
     }
 
     const data = await response.json()
-    return data.IpfsHash
+    return data.cid
 }
 
 export function getIPFSUrl(cid: string): string {
     if (!cid) return '/placeholder.jpg'
+    if (!PINATA_GATEWAY) {
+        throw new Error('NEXT_PUBLIC_PINATA_GATEWAY is not configured')
+    }
     return `${PINATA_GATEWAY}/ipfs/${cid}`
 }
 
