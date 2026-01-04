@@ -1,5 +1,6 @@
-export const CROWDFUNDING_ADDRESS = '0x1A8DA2385043aDDA13Afa12772e8D8cbCdd3B367' as const
-export const SEDULUR_TOKEN_ADDRESS = '0xA7781a2D948303809355f958027a750eFe8e71CB' as const
+// Contract addresses from environment variables
+export const CROWDFUNDING_ADDRESS = process.env.NEXT_PUBLIC_CROWDFUNDING_ADDRESS as `0x${string}`
+export const SEDULUR_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_SEDULUR_TOKEN_ADDRESS as `0x${string}`
 
 export const CROWDFUNDING_ABI = [
     // View Functions

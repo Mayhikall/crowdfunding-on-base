@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from 'react'
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { config } from '@/lib/wagmi'
+import { NetworkGuard } from '@/components/NetworkGuard'
 
 const queryClient = new QueryClient()
 
@@ -18,10 +19,13 @@ export function Providers({ children }: ProvidersProps) {
     setMounted(true)
   }, [])
 
+  if (!mounted) return null
+
+  // NetworkGuard is INSIDE WagmiProvider to use wagmi hooks
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        {mounted ? children : null}
+        <NetworkGuard>{children}</NetworkGuard>
       </QueryClientProvider>
     </WagmiProvider>
   )
